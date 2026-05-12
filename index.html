@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Package Tracker</title>
+  <style>
+    :root {
+      --white:  #ffffff;
+      --accent: rgba(255,255,255,0.65);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background-color: #111827;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 3rem;
+      transition: background-color 0.9s ease;
+    }
+
+    /* ── Header ───────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .site-name {
+      font-size: clamp(1rem, 3vw, 1.25rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--accent);
+    }
+
+    .page-title {
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--white);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    .page-subtitle {
+      margin-top: 0.5rem;
+      font-size: clamp(0.85rem, 2vw, 1rem);
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.05em;
+    }
+
+    .divider {
+      width: 80px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      margin: 1.2rem auto;
+    }
+
+    /* ── Input card ───────────────────────────────── */
+    .input-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      width: 100%;
+      max-width: 620px;
+      margin-bottom: 2rem;
+    }
+
+    .carrier-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .carrier-badge {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.38);
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .carrier-badge.detected {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.42);
+      color: #fff;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .tracking-input {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 12px;
+      padding: 0.9rem 1.2rem;
+      color: #fff;
+      font-size: 1rem;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.06em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .tracking-input::placeholder {
+      color: rgba(255,255,255,0.22);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .tracking-input:focus { border-color: rgba(255,255,255,0.45); }
+
+    .track-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 0.9rem 1.6rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+    .track-btn:hover { background: rgba(255,255,255,0.22); }
+
+    /* ── Status display ───────────────────────────── */
+    .status-display {
+      display: none;
+      width: 100%;
+      max-width: 620px;
+      text-align: center;
+      padding: 3.5rem 2rem 2.5rem;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 24px;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .status-display.visible { display: block; }
+
+    .status-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.7s ease, background 0.7s ease;
+    }
+    .status-glow.lit { opacity: 1; }
+
+    .status-icon {
+      font-size: 3rem;
+      margin-bottom: 0.6rem;
+      position: relative;
+      filter: drop-shadow(0 4px 14px rgba(0,0,0,0.45));
+    }
+
+    .status-carrier-label {
+      font-size: 0.73rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.42);
+      margin-bottom: 0.35rem;
+      position: relative;
+    }
+
+    .status-tracking-num {
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.28);
+      letter-spacing: 0.08em;
+      margin-bottom: 2rem;
+      word-break: break-all;
+      position: relative;
+    }
+
+    .status-text {
+      font-size: clamp(2.2rem, 7vw, 4.5rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 0.6rem;
+      transition: color 0.6s ease;
+      position: relative;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.55);
+    }
+
+    .status-detail {
+      font-size: clamp(0.9rem, 2.5vw, 1.15rem);
+      color: rgba(255,255,255,0.62);
+      font-weight: 400;
+      position: relative;
+      min-height: 1.5em;
+      line-height: 1.4;
+    }
+
+    .status-updated {
+      margin-top: 2rem;
+      font-size: 0.67rem;
+      color: rgba(255,255,255,0.22);
+      letter-spacing: 0.1em;
+      position: relative;
+    }
+
+    .refresh-bar {
+      height: 2px;
+      background: rgba(255,255,255,0.09);
+      border-radius: 2px;
+      margin-top: 0.9rem;
+      overflow: hidden;
+      position: relative;
+    }
+    .refresh-bar-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.32);
+      border-radius: 2px;
+      transform-origin: left;
+      animation: drain 5s linear infinite;
+    }
+    @keyframes drain {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* pulse glows per status */
+    @keyframes pulse-blue {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(30,100,220,0); }
+      50%       { box-shadow: 0 0 50px 8px rgba(30,100,220,0.25); }
+    }
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(46,125,50,0); }
+      50%       { box-shadow: 0 0 50px 8px rgba(46,125,50,0.28); }
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(198,40,40,0); }
+      50%       { box-shadow: 0 0 50px 8px rgba(198,40,40,0.22); }
+    }
+
+    .status-display.s-out       { animation: pulse-blue  2.5s ease-in-out infinite; }
+    .status-display.s-delivered { animation: pulse-green 2.5s ease-in-out infinite; }
+    .status-display.s-delay     { animation: pulse-red   2.5s ease-in-out infinite; }
+
+    /* ── Hidden iframe ────────────────────────────── */
+    #tracking-frame {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      border: none;
+      left: -9999px;
+      top: -9999px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── Footer ───────────────────────────────────── */
+    footer {
+      margin-top: 2rem;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.08em;
+      text-align: center;
+      line-height: 1.9;
+    }
+
+    @media (max-width: 480px) {
+      .input-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden tracking iframe — refreshed every 5s -->
+  <iframe id="tracking-frame" src="" title="tracking data" sandbox="allow-same-origin allow-scripts"></iframe>
+
+  <header>
+    <p class="site-name">Package Tracker</p>
+    <h1 class="page-title">Track Your <span>Package</span></h1>
+    <div class="divider"></div>
+    <p class="page-subtitle">USPS &nbsp;·&nbsp; UPS &nbsp;·&nbsp; FedEx &nbsp;·&nbsp; DHL &nbsp;·&nbsp; Amazon</p>
+  </header>
+
+  <div class="input-card">
+    <div class="carrier-badges">
+      <span class="carrier-badge" id="badge-usps">USPS</span>
+      <span class="carrier-badge" id="badge-ups">UPS</span>
+      <span class="carrier-badge" id="badge-fedex">FedEx</span>
+      <span class="carrier-badge" id="badge-dhl">DHL</span>
+      <span class="carrier-badge" id="badge-amazon">Amazon</span>
+    </div>
+    <div class="input-row">
+      <input
+        class="tracking-input"
+        id="tracking-input"
+        type="text"
+        placeholder="Enter tracking number"
+        autocomplete="off"
+        spellcheck="false"
+        oninput="onInputChange()"
+        onkeydown="if(event.key==='Enter') trackPackage()"
+      />
+      <button class="track-btn" onclick="trackPackage()">Track &rarr;</button>
+    </div>
+  </div>
+
+  <div class="status-display" id="status-display">
+    <div class="status-glow" id="status-glow"></div>
+    <div class="status-icon" id="status-icon">📦</div>
+    <div class="status-carrier-label" id="status-carrier-label">&mdash;</div>
+    <div class="status-tracking-num" id="status-tracking-num">&mdash;</div>
+    <div class="status-text" id="status-text">Checking&hellip;</div>
+    <div class="status-detail" id="status-detail">Fetching status</div>
+    <div class="status-updated" id="status-updated">&mdash;</div>
+    <div class="refresh-bar"><div class="refresh-bar-fill" id="refresh-bar-fill"></div></div>
+  </div>
+
+  <footer>
+    Refreshes every 5 seconds &nbsp;&middot;&nbsp; Package Tracker
+  </footer>
+
+  <script>
+    // ── Carrier detection from tracking number format ───────────────────
+    function detectCarrier(raw) {
+      const n = raw.trim().toUpperCase().replace(/\s+/g, '');
+      if (!n) return null;
+
+      if (/^TBA\d{10,20}$/.test(n))                                   return 'amazon';
+      if (/^1Z[0-9A-Z]{16}$/.test(n))                                 return 'ups';
+      if (/^(94|93|92|82|70|77|23|13)\d{16,20}$/.test(n))            return 'usps';
+      if (/^[A-Z]{2}\d{9}US$/.test(n))                               return 'usps';
+      if (/^\d{20,22}$/.test(n))                                       return 'usps';
+      if (/^96\d{18}$/.test(n) || /^\d{12}$/.test(n) || /^\d{15}$/.test(n)) return 'fedex';
+      if (/^JD\d{18}$/.test(n))                                        return 'dhl';
+      if (/^\d{10,11}$/.test(n))                                       return 'dhl';
+
+      return null;
+    }
+
+    // ── Carrier tracking page URLs ──────────────────────────────────────
+    function trackingPageUrl(carrier, num) {
+      const n = num.trim().replace(/\s+/g, '');
+      switch (carrier) {
+        case 'usps':   return 'https://tools.usps.com/go/TrackConfirmAction?tLabels=' + n;
+        case 'ups':    return 'https://www.ups.com/track?tracknum=' + n;
+        case 'fedex':  return 'https://www.fedex.com/fedextrack/?tracknumbers=' + n;
+        case 'dhl':    return 'https://www.dhl.com/en/express/tracking.html?AWB=' + n;
+        case 'amazon': return 'https://www.amazon.com/progress-tracker/package/' + n;
+      }
+    }
+
+    // ── Status keyword matching ─────────────────────────────────────────
+    const DELIVERED_RE = [/\bdelivered\b/i, /delivery complete/i, /package was delivered/i];
+    const OUT_RE       = [/out for delivery/i, /on.*vehicle for delivery/i, /on fedex vehicle/i, /with delivery courier/i, /out for delivery/i];
+    const DELAY_RE     = [/\bdelay/i, /delivery exception/i, /\bexception\b/i, /missed delivery/i, /delivery attempt/i];
+
+    function parseStatusFromHtml(html) {
+      for (const re of DELIVERED_RE) if (re.test(html)) return 'delivered';
+      for (const re of OUT_RE)       if (re.test(html)) return 'out';
+      for (const re of DELAY_RE)     if (re.test(html)) return 'delay';
+
+      const dateMatch = html.match(
+        /(?:estimated|scheduled|expected)\s+delivery[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s*\d{4}|\w+day,?\s*\w+\s+\d{1,2})/i
+      );
+      return dateMatch ? { status: 'ontime', date: dateMatch[1].trim() } : 'ontime';
+    }
+
+    function parseDeliveryTime(html) {
+      const m = html.match(/delivered[^<]{0,60}?(\d{1,2}:\d{2}\s*[APap][Mm])/i);
+      return m ? m[1] : null;
+    }
+
+    // ── Status display config ───────────────────────────────────────────
+    const STATUS = {
+      ontime:    { icon: '📦', color: '#B0BEC5', glow: 'rgba(158,158,158,0.14)', bg: '#111827', panelCls: 's-ontime' },
+      out:       { icon: '🚚', color: '#4FC3F7', glow: 'rgba(30,100,220,0.22)',  bg: '#08111f', panelCls: 's-out' },
+      delivered: { icon: '✅', color: '#66BB6A', glow: 'rgba(46,125,50,0.22)',   bg: '#081510', panelCls: 's-delivered' },
+      delay:     { icon: '⚠️', color: '#EF5350', glow: 'rgba(198,40,40,0.22)',   bg: '#150808', panelCls: 's-delay' },
+    };
+
+    // ── State ───────────────────────────────────────────────────────────
+    let currentCarrier = null;
+    let currentNum     = '';
+    let refreshTimer   = null;
+
+    // ── Badge highlight ─────────────────────────────────────────────────
+    function highlightBadge(carrier) {
+      ['usps','ups','fedex','dhl','amazon'].forEach(c => {
+        document.getElementById('badge-' + c).classList.toggle('detected', c === carrier);
+      });
+    }
+
+    function onInputChange() {
+      const v = document.getElementById('tracking-input').value;
+      const c = detectCarrier(v);
+      highlightBadge(c);
+    }
+
+    // ── Apply status to UI ──────────────────────────────────────────────
+    function applyStatus(key, detail) {
+      const cfg = STATUS[key];
+
+      document.body.style.backgroundColor = cfg.bg;
+
+      const panel = document.getElementById('status-display');
+      panel.className = 'status-display visible ' + cfg.panelCls;
+
+      const glow = document.getElementById('status-glow');
+      glow.style.background = 'radial-gradient(ellipse at center, ' + cfg.glow + ' 0%, transparent 70%)';
+      glow.classList.add('lit');
+
+      document.getElementById('status-icon').textContent   = cfg.icon;
+      document.getElementById('status-text').textContent   = labelFor(key, detail);
+      document.getElementById('status-text').style.color   = cfg.color;
+      document.getElementById('status-detail').textContent = detail || '';
+      document.getElementById('status-updated').textContent =
+        'Last checked: ' + new Date().toLocaleTimeString();
+    }
+
+    function labelFor(key, detail) {
+      if (key === 'ontime') {
+        const d = detail && detail.match(/Estimated Delivery: (.+)/);
+        return d ? 'On Time: ' + d[1] : 'On Time';
+      }
+      if (key === 'out')       return 'Out For Delivery';
+      if (key === 'delivered') {
+        const t = detail && detail.match(/Delivered at (.+)/);
+        return t ? 'Delivered at ' + t[1] : 'Delivered';
+      }
+      if (key === 'delay') return 'Delay';
+      return key;
+    }
+
+    function setCarrierLabel(carrier, num) {
+      const names = { usps:'USPS', ups:'UPS', fedex:'FedEx', dhl:'DHL', amazon:'Amazon' };
+      document.getElementById('status-carrier-label').textContent =
+        (names[carrier] || 'Unknown Carrier') + ' Tracking';
+      document.getElementById('status-tracking-num').textContent = num;
+    }
+
+    function restartRefreshBar() {
+      const el = document.getElementById('refresh-bar-fill');
+      el.style.animation = 'none';
+      void el.offsetHeight;
+      el.style.animation = '';
+    }
+
+    // ── Fetch tracking page via CORS proxy, parse status ─────────────────
+    async function fetchAndUpdateStatus() {
+      if (!currentCarrier || !currentNum) return;
+
+      // Load hidden iframe with the real tracking page
+      document.getElementById('tracking-frame').src = trackingPageUrl(currentCarrier, currentNum);
+
+      try {
+        const proxyUrl = 'https://api.allorigins.win/get?url=' +
+          encodeURIComponent(trackingPageUrl(currentCarrier, currentNum));
+        const resp = await fetch(proxyUrl, { cache: 'no-store' });
+        if (!resp.ok) throw new Error('proxy ' + resp.status);
+        const data = await resp.json();
+        const html = data.contents || '';
+        const parsed = parseStatusFromHtml(html);
+
+        if (parsed === 'out') {
+          applyStatus('out', 'Your package is on its way');
+        } else if (parsed === 'delivered') {
+          const t = parseDeliveryTime(html);
+          applyStatus('delivered', t ? 'Delivered at ' + t : 'Your package has been delivered');
+        } else if (parsed === 'delay') {
+          applyStatus('delay', 'A delay has been reported — check carrier for details');
+        } else if (typeof parsed === 'object' && parsed.status === 'ontime') {
+          applyStatus('ontime', parsed.date ? 'Estimated Delivery: ' + parsed.date : 'In transit — on schedule');
+        } else {
+          applyStatus('ontime', 'In transit — on schedule');
+        }
+      } catch {
+        applyStatus('ontime', 'Unable to read status — carrier site may block automated requests');
+      }
+    }
+
+    // ── Main: start tracking ────────────────────────────────────────────
+    function trackPackage() {
+      const input = document.getElementById('tracking-input');
+      const raw = input.value.trim();
+      if (!raw) return;
+
+      const carrier = detectCarrier(raw);
+      if (!carrier) {
+        input.style.borderColor = 'rgba(239,83,80,0.75)';
+        setTimeout(() => { input.style.borderColor = ''; }, 1600);
+        document.getElementById('status-detail').textContent =
+          'Carrier not recognised — check your tracking number';
+        document.getElementById('status-display').classList.add('visible');
+        applyStatus('delay', 'Carrier not recognised — check your tracking number');
+        return;
+      }
+
+      currentCarrier = carrier;
+      currentNum     = raw;
+      highlightBadge(carrier);
+
+      document.getElementById('status-display').classList.add('visible');
+      setCarrierLabel(carrier, raw);
+      applyStatus('ontime', 'Fetching status…');
+
+      if (refreshTimer) clearInterval(refreshTimer);
+      restartRefreshBar();
+
+      fetchAndUpdateStatus();
+      refreshTimer = setInterval(() => {
+        fetchAndUpdateStatus();
+        restartRefreshBar();
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
