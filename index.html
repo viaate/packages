@@ -24,11 +24,7 @@
       transition: background-color 0.9s ease;
     }
 
-    /* ── Header ───────────────────────────────────── */
-    header {
-      text-align: center;
-      margin-bottom: 2.5rem;
-    }
+    header { text-align: center; margin-bottom: 2.5rem; }
 
     .site-name {
       font-size: clamp(1rem, 3vw, 1.25rem);
@@ -61,7 +57,6 @@
       margin: 1.2rem auto;
     }
 
-    /* ── Input card ───────────────────────────────── */
     .input-card {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.15);
@@ -93,17 +88,13 @@
       transition: all 0.2s;
       user-select: none;
     }
-
     .carrier-badge.detected {
       background: rgba(255,255,255,0.18);
       border-color: rgba(255,255,255,0.42);
       color: #fff;
     }
 
-    .input-row {
-      display: flex;
-      gap: 0.75rem;
-    }
+    .input-row { display: flex; gap: 0.75rem; }
 
     .tracking-input {
       flex: 1;
@@ -118,13 +109,11 @@
       outline: none;
       transition: border-color 0.2s;
     }
-
     .tracking-input::placeholder {
       color: rgba(255,255,255,0.22);
       font-family: 'Segoe UI', system-ui, sans-serif;
       letter-spacing: 0;
     }
-
     .tracking-input:focus { border-color: rgba(255,255,255,0.45); }
 
     .track-btn {
@@ -143,7 +132,6 @@
     }
     .track-btn:hover { background: rgba(255,255,255,0.22); }
 
-    /* ── Status display ───────────────────────────── */
     .status-display {
       display: none;
       width: 100%;
@@ -242,7 +230,6 @@
       to   { transform: scaleX(0); }
     }
 
-    /* pulse glows per status */
     @keyframes pulse-blue {
       0%, 100% { box-shadow: 0 0 0 0 rgba(30,100,220,0); }
       50%       { box-shadow: 0 0 50px 8px rgba(30,100,220,0.25); }
@@ -260,7 +247,6 @@
     .status-display.s-delivered { animation: pulse-green 2.5s ease-in-out infinite; }
     .status-display.s-delay     { animation: pulse-red   2.5s ease-in-out infinite; }
 
-    /* ── Hidden iframe ────────────────────────────── */
     #tracking-frame {
       position: fixed;
       width: 1px;
@@ -272,7 +258,6 @@
       pointer-events: none;
     }
 
-    /* ── Footer ───────────────────────────────────── */
     footer {
       margin-top: 2rem;
       font-size: 0.72rem;
@@ -289,14 +274,13 @@
 </head>
 <body>
 
-  <!-- Hidden tracking iframe — refreshed every 5s -->
   <iframe id="tracking-frame" src="" title="tracking data" sandbox="allow-same-origin allow-scripts"></iframe>
 
   <header>
     <p class="site-name">Package Tracker</p>
     <h1 class="page-title">Track Your <span>Package</span></h1>
     <div class="divider"></div>
-    <p class="page-subtitle">USPS &nbsp;·&nbsp; UPS &nbsp;·&nbsp; FedEx &nbsp;·&nbsp; DHL &nbsp;·&nbsp; Amazon</p>
+    <p class="page-subtitle">USPS &nbsp;&middot;&nbsp; UPS &nbsp;&middot;&nbsp; FedEx &nbsp;&middot;&nbsp; DHL &nbsp;&middot;&nbsp; Amazon</p>
   </header>
 
   <div class="input-card">
@@ -338,41 +322,122 @@
   </footer>
 
   <script>
-    // ── Carrier detection from tracking number format ───────────────────
+    // ── Carrier detection ───────────────────────────────────────────────
     function detectCarrier(raw) {
       const n = raw.trim().toUpperCase().replace(/\s+/g, '');
       if (!n) return null;
-
-      if (/^TBA\d{10,20}$/.test(n))                                   return 'amazon';
-      if (/^1Z[0-9A-Z]{16}$/.test(n))                                 return 'ups';
-      if (/^(94|93|92|82|70|77|23|13)\d{16,20}$/.test(n))            return 'usps';
-      if (/^[A-Z]{2}\d{9}US$/.test(n))                               return 'usps';
-      if (/^\d{20,22}$/.test(n))                                       return 'usps';
+      if (/^TBA\d{10,20}$/.test(n))                                          return 'amazon';
+      if (/^1Z[0-9A-Z]{16}$/.test(n))                                        return 'ups';
+      if (/^(94|93|92|82|70|77|23|13)\d{16,20}$/.test(n))                   return 'usps';
+      if (/^[A-Z]{2}\d{9}US$/.test(n))                                      return 'usps';
+      if (/^\d{20,22}$/.test(n))                                              return 'usps';
       if (/^96\d{18}$/.test(n) || /^\d{12}$/.test(n) || /^\d{15}$/.test(n)) return 'fedex';
-      if (/^JD\d{18}$/.test(n))                                        return 'dhl';
-      if (/^\d{10,11}$/.test(n))                                       return 'dhl';
+      if (/^JD\d{18}$/.test(n))                                               return 'dhl';
+      if (/^\d{10,11}$/.test(n))                                              return 'dhl';
+      return null;
+    }
+
+    // ── Tracking URLs (most server-friendly variants) ───────────────────
+    function trackingPageUrl(carrier, num) {
+      const n = encodeURIComponent(num.trim().replace(/\s+/g, ''));
+      switch (carrier) {
+        case 'usps':   return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`;
+        case 'ups':    return `https://wwwapps.ups.com/WebTracking/track?track=yes&trackNums=${n}`;
+        case 'fedex':  return `https://www.fedex.com/apps/fedextrack/?action=track&trackingnumber=${n}&cntry_code=us`;
+        case 'dhl':    return `https://www.dhl.com/en/express/tracking.html?AWB=${n}&brand=DHL`;
+        case 'amazon': return `https://www.amazon.com/progress-tracker/package/${n}`;
+      }
+    }
+
+    // ── Status enum values used by carrier backends ─────────────────────
+    // These appear as JSON string values inside script tags in SSR pages.
+    const ENUM_OUT = [
+      'OUT_FOR_DELIVERY', 'OUT FOR DELIVERY', 'ON_VEHICLE_FOR_DELIVERY',
+      'DELIVERY_STARTED', 'IN_TRANSIT_TO_RECIPIENT', 'WithDeliveryCourier',
+      'AttemptFail',  // sometimes a prior attempt triggers OFD state in JSON
+      'LEFT_WITH_INDIVIDUAL', // UPS OFD sub-state
+    ];
+    const ENUM_DELIVERED = [
+      'DELIVERED', 'DELIVERED_TO_RECIPIENT', 'PACKAGE_DELIVERED',
+      'SignedForBy', 'Delivered',
+    ];
+    const ENUM_DELAY = [
+      'DELIVERY_EXCEPTION', 'EXCEPTION', 'DELAY', 'ALERT',
+      'RETURNED_TO_SENDER', 'RETURN_TO_SENDER', 'FAILED_ATTEMPT',
+      'UNDELIVERABLE', 'ADDRESS_ISSUE',
+    ];
+
+    // ── Deep-scan HTML for status ───────────────────────────────────────
+    function parseStatusFromHtml(html) {
+      // 1. Next.js SSR payload (__NEXT_DATA__)
+      const nextDataMatch = html.match(
+        /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i
+      );
+      if (nextDataMatch) {
+        const result = scanJson(nextDataMatch[1]);
+        if (result) return result;
+      }
+
+      // 2. Any <script type="application/json"> block
+      const jsonScripts = [...html.matchAll(
+        /<script[^>]+type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi
+      )];
+      for (const [, content] of jsonScripts) {
+        const result = scanJson(content);
+        if (result) return result;
+      }
+
+      // 3. Any inline script that contains a status-like key
+      const allScripts = [...html.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)];
+      for (const [, content] of allScripts) {
+        if (content.length < 10 || content.length > 200000) continue;
+        if (/status|tracking|delivery|shipment/i.test(content)) {
+          const result = scanJson(content);
+          if (result) return result;
+        }
+      }
+
+      // 4. Plain-text keyword scan on full HTML
+      return keywordScan(html);
+    }
+
+    // Flatten a JSON-ish string and match against known enum values
+    function scanJson(raw) {
+      let flat;
+      try { flat = JSON.stringify(JSON.parse(raw)); }
+      catch { flat = raw; }  // not valid JSON — search raw string
+
+      // Exact enum matches (quoted, so we avoid partial hits)
+      for (const e of ENUM_OUT)       if (flat.includes(e)) return 'out';
+      for (const e of ENUM_DELIVERED) if (flat.includes(e)) return 'delivered';
+      for (const e of ENUM_DELAY)     if (flat.includes(e)) return 'delay';
+
+      // Try to pull an estimated delivery date from JSON
+      const dateMatch = flat.match(
+        /(?:estimatedDelivery|scheduledDelivery|expectedDelivery|promisedDeliveryDate)["']?\s*:\s*["']([^"']{5,40})["']/i
+      );
+      if (dateMatch) return { status: 'ontime', date: dateMatch[1] };
 
       return null;
     }
 
-    // ── Carrier tracking page URLs ──────────────────────────────────────
-    function trackingPageUrl(carrier, num) {
-      const n = num.trim().replace(/\s+/g, '');
-      switch (carrier) {
-        case 'usps':   return 'https://tools.usps.com/go/TrackConfirmAction?tLabels=' + n;
-        case 'ups':    return 'https://www.ups.com/track?tracknum=' + n;
-        case 'fedex':  return 'https://www.fedex.com/fedextrack/?tracknumbers=' + n;
-        case 'dhl':    return 'https://www.dhl.com/en/express/tracking.html?AWB=' + n;
-        case 'amazon': return 'https://www.amazon.com/progress-tracker/package/' + n;
-      }
-    }
+    // Fallback: regex keyword scan on raw HTML text
+    function keywordScan(html) {
+      const DELIVERED_RE = [
+        /\bdelivered\b/i, /delivery complete/i, /package was delivered/i,
+        /has been delivered/i,
+      ];
+      const OUT_RE = [
+        /out for delivery/i, /on.*vehicle for delivery/i,
+        /on fedex vehicle/i, /with delivery courier/i,
+        /driver is nearby/i, /package is nearby/i,
+      ];
+      const DELAY_RE = [
+        /\bdelay/i, /delivery exception/i, /\bexception\b/i,
+        /missed delivery/i, /delivery attempt/i, /unable to deliver/i,
+        /delivery was not completed/i,
+      ];
 
-    // ── Status keyword matching ─────────────────────────────────────────
-    const DELIVERED_RE = [/\bdelivered\b/i, /delivery complete/i, /package was delivered/i];
-    const OUT_RE       = [/out for delivery/i, /on.*vehicle for delivery/i, /on fedex vehicle/i, /with delivery courier/i, /out for delivery/i];
-    const DELAY_RE     = [/\bdelay/i, /delivery exception/i, /\bexception\b/i, /missed delivery/i, /delivery attempt/i];
-
-    function parseStatusFromHtml(html) {
       for (const re of DELIVERED_RE) if (re.test(html)) return 'delivered';
       for (const re of OUT_RE)       if (re.test(html)) return 'out';
       for (const re of DELAY_RE)     if (re.test(html)) return 'delay';
@@ -384,16 +449,16 @@
     }
 
     function parseDeliveryTime(html) {
-      const m = html.match(/delivered[^<]{0,60}?(\d{1,2}:\d{2}\s*[APap][Mm])/i);
+      const m = html.match(/delivered[^<]{0,80}?(\d{1,2}:\d{2}\s*[APap][Mm])/i);
       return m ? m[1] : null;
     }
 
     // ── Status display config ───────────────────────────────────────────
     const STATUS = {
       ontime:    { icon: '📦', color: '#B0BEC5', glow: 'rgba(158,158,158,0.14)', bg: '#111827', panelCls: 's-ontime' },
-      out:       { icon: '🚚', color: '#4FC3F7', glow: 'rgba(30,100,220,0.22)',  bg: '#08111f', panelCls: 's-out' },
-      delivered: { icon: '✅', color: '#66BB6A', glow: 'rgba(46,125,50,0.22)',   bg: '#081510', panelCls: 's-delivered' },
-      delay:     { icon: '⚠️', color: '#EF5350', glow: 'rgba(198,40,40,0.22)',   bg: '#150808', panelCls: 's-delay' },
+      out:       { icon: '🚚', color: '#4FC3F7', glow: 'rgba(30,100,220,0.22)',  bg: '#08111f', panelCls: 's-out'    },
+      delivered: { icon: '✅',       color: '#66BB6A', glow: 'rgba(46,125,50,0.22)',   bg: '#081510', panelCls: 's-delivered' },
+      delay:     { icon: '⚠️', color: '#EF5350', glow: 'rgba(198,40,40,0.22)',   bg: '#150808', panelCls: 's-delay'  },
     };
 
     // ── State ───────────────────────────────────────────────────────────
@@ -401,35 +466,32 @@
     let currentNum     = '';
     let refreshTimer   = null;
 
-    // ── Badge highlight ─────────────────────────────────────────────────
     function highlightBadge(carrier) {
-      ['usps','ups','fedex','dhl','amazon'].forEach(c => {
-        document.getElementById('badge-' + c).classList.toggle('detected', c === carrier);
-      });
+      ['usps','ups','fedex','dhl','amazon'].forEach(c =>
+        document.getElementById('badge-' + c).classList.toggle('detected', c === carrier)
+      );
     }
 
     function onInputChange() {
-      const v = document.getElementById('tracking-input').value;
-      const c = detectCarrier(v);
-      highlightBadge(c);
+      highlightBadge(detectCarrier(document.getElementById('tracking-input').value));
     }
 
-    // ── Apply status to UI ──────────────────────────────────────────────
+    // ── Apply status ────────────────────────────────────────────────────
     function applyStatus(key, detail) {
       const cfg = STATUS[key];
-
       document.body.style.backgroundColor = cfg.bg;
 
       const panel = document.getElementById('status-display');
       panel.className = 'status-display visible ' + cfg.panelCls;
 
       const glow = document.getElementById('status-glow');
-      glow.style.background = 'radial-gradient(ellipse at center, ' + cfg.glow + ' 0%, transparent 70%)';
+      glow.style.background =
+        `radial-gradient(ellipse at center, ${cfg.glow} 0%, transparent 70%)`;
       glow.classList.add('lit');
 
-      document.getElementById('status-icon').textContent   = cfg.icon;
-      document.getElementById('status-text').textContent   = labelFor(key, detail);
-      document.getElementById('status-text').style.color   = cfg.color;
+      document.getElementById('status-icon').textContent = cfg.icon;
+      document.getElementById('status-text').textContent = labelFor(key, detail);
+      document.getElementById('status-text').style.color = cfg.color;
       document.getElementById('status-detail').textContent = detail || '';
       document.getElementById('status-updated').textContent =
         'Last checked: ' + new Date().toLocaleTimeString();
@@ -463,20 +525,23 @@
       el.style.animation = '';
     }
 
-    // ── Fetch tracking page via CORS proxy, parse status ─────────────────
+    // ── Fetch & parse ───────────────────────────────────────────────────
     async function fetchAndUpdateStatus() {
       if (!currentCarrier || !currentNum) return;
 
-      // Load hidden iframe with the real tracking page
-      document.getElementById('tracking-frame').src = trackingPageUrl(currentCarrier, currentNum);
+      // Refresh the hidden iframe with the real tracking page
+      document.getElementById('tracking-frame').src =
+        trackingPageUrl(currentCarrier, currentNum);
+
+      const proxyUrl = 'https://api.allorigins.win/get?url=' +
+        encodeURIComponent(trackingPageUrl(currentCarrier, currentNum));
 
       try {
-        const proxyUrl = 'https://api.allorigins.win/get?url=' +
-          encodeURIComponent(trackingPageUrl(currentCarrier, currentNum));
         const resp = await fetch(proxyUrl, { cache: 'no-store' });
         if (!resp.ok) throw new Error('proxy ' + resp.status);
         const data = await resp.json();
         const html = data.contents || '';
+
         const parsed = parseStatusFromHtml(html);
 
         if (parsed === 'out') {
@@ -487,36 +552,34 @@
         } else if (parsed === 'delay') {
           applyStatus('delay', 'A delay has been reported — check carrier for details');
         } else if (typeof parsed === 'object' && parsed.status === 'ontime') {
-          applyStatus('ontime', parsed.date ? 'Estimated Delivery: ' + parsed.date : 'In transit — on schedule');
+          applyStatus('ontime',
+            parsed.date ? 'Estimated Delivery: ' + parsed.date : 'In transit — on schedule');
         } else {
           applyStatus('ontime', 'In transit — on schedule');
         }
       } catch {
-        applyStatus('ontime', 'Unable to read status — carrier site may block automated requests');
+        applyStatus('ontime', 'Could not read carrier page — retrying…');
       }
     }
 
-    // ── Main: start tracking ────────────────────────────────────────────
+    // ── Main ────────────────────────────────────────────────────────────
     function trackPackage() {
-      const input = document.getElementById('tracking-input');
-      const raw = input.value.trim();
+      const input  = document.getElementById('tracking-input');
+      const raw    = input.value.trim();
       if (!raw) return;
 
       const carrier = detectCarrier(raw);
       if (!carrier) {
         input.style.borderColor = 'rgba(239,83,80,0.75)';
         setTimeout(() => { input.style.borderColor = ''; }, 1600);
-        document.getElementById('status-detail').textContent =
-          'Carrier not recognised — check your tracking number';
-        document.getElementById('status-display').classList.add('visible');
         applyStatus('delay', 'Carrier not recognised — check your tracking number');
+        document.getElementById('status-display').classList.add('visible');
         return;
       }
 
       currentCarrier = carrier;
       currentNum     = raw;
       highlightBadge(carrier);
-
       document.getElementById('status-display').classList.add('visible');
       setCarrierLabel(carrier, raw);
       applyStatus('ontime', 'Fetching status…');
