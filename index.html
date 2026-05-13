@@ -57,6 +57,25 @@
       margin: 1.2rem auto;
     }
 
+    /* ── API key banner ─────────────────────────────── */
+    .api-banner {
+      display: none;
+      width: 100%;
+      max-width: 620px;
+      background: rgba(239,83,80,0.12);
+      border: 1px solid rgba(239,83,80,0.35);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.75);
+    }
+    .api-banner.show { display: block; }
+    .api-banner strong { color: #EF5350; }
+    .api-banner a { color: #4FC3F7; text-underline-offset: 3px; }
+
+    /* ── Input card ─────────────────────────────────── */
     .input-card {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.15);
@@ -132,6 +151,7 @@
     }
     .track-btn:hover { background: rgba(255,255,255,0.22); }
 
+    /* ── Status display ─────────────────────────────── */
     .status-display {
       display: none;
       width: 100%;
@@ -249,13 +269,10 @@
 
     #tracking-frame {
       position: fixed;
-      width: 1px;
-      height: 1px;
+      width: 1px; height: 1px;
       border: none;
-      left: -9999px;
-      top: -9999px;
-      opacity: 0;
-      pointer-events: none;
+      left: -9999px; top: -9999px;
+      opacity: 0; pointer-events: none;
     }
 
     footer {
@@ -274,7 +291,7 @@
 </head>
 <body>
 
-  <iframe id="tracking-frame" src="" title="tracking data" sandbox="allow-same-origin allow-scripts"></iframe>
+  <iframe id="tracking-frame" src="" title="tracking" sandbox></iframe>
 
   <header>
     <p class="site-name">Package Tracker</p>
@@ -282,6 +299,13 @@
     <div class="divider"></div>
     <p class="page-subtitle">USPS &nbsp;&middot;&nbsp; UPS &nbsp;&middot;&nbsp; FedEx &nbsp;&middot;&nbsp; DHL &nbsp;&middot;&nbsp; Amazon</p>
   </header>
+
+  <div class="api-banner" id="api-banner">
+    <strong>Setup required:</strong> Add your free 17track API key to this file.<br>
+    1. Sign up (free, no credit card) at <a href="https://features.17track.net/en/api" target="_blank">features.17track.net/en/api</a><br>
+    2. Open this HTML file and replace <code>YOUR_17TRACK_API_KEY</code> near the top of the &lt;script&gt; with your key.<br>
+    Free tier: 100 packages/month &mdash; enough for personal use.
+  </div>
 
   <div class="input-card">
     <div class="carrier-badges">
@@ -318,168 +342,147 @@
   </div>
 
   <footer>
-    Refreshes every 5 seconds &nbsp;&middot;&nbsp; Package Tracker
+    Powered by 17track &nbsp;&middot;&nbsp; Refreshes every 5 seconds
   </footer>
 
   <script>
-    // ── Carrier detection ───────────────────────────────────────────────
+    // =========================================================
+    //  FREE API KEY — takes ~2 minutes to get:
+    //  1. Go to https://features.17track.net/en/api
+    //  2. Sign up (no credit card)
+    //  3. Copy your API key and paste it below
+    //  Free tier: 100 new packages/month
+    // =========================================================
+    const API_KEY = 'YOUR_17TRACK_API_KEY';
+
+    // ── Carrier detection ─────────────────────────────────────────────
     function detectCarrier(raw) {
       const n = raw.trim().toUpperCase().replace(/\s+/g, '');
       if (!n) return null;
-      if (/^TBA\d{10,20}$/.test(n))                                          return 'amazon';
-      if (/^1Z[0-9A-Z]{16}$/.test(n))                                        return 'ups';
-      if (/^(94|93|92|82|70|77|23|13)\d{16,20}$/.test(n))                   return 'usps';
-      if (/^[A-Z]{2}\d{9}US$/.test(n))                                      return 'usps';
-      if (/^\d{20,22}$/.test(n))                                              return 'usps';
-      if (/^96\d{18}$/.test(n) || /^\d{12}$/.test(n) || /^\d{15}$/.test(n)) return 'fedex';
-      if (/^JD\d{18}$/.test(n))                                               return 'dhl';
-      if (/^\d{10,11}$/.test(n))                                              return 'dhl';
+      if (/^TBA\d{10,20}$/.test(n))                                           return 'amazon';
+      if (/^1Z[0-9A-Z]{16}$/.test(n))                                         return 'ups';
+      if (/^(94|93|92|82|70|77|23|13)\d{16,20}$/.test(n))                    return 'usps';
+      if (/^[A-Z]{2}\d{9}US$/.test(n))                                       return 'usps';
+      if (/^\d{20,22}$/.test(n))                                               return 'usps';
+      if (/^96\d{18}$/.test(n) || /^\d{12}$/.test(n) || /^\d{15}$/.test(n))  return 'fedex';
+      if (/^JD\d{18}$/.test(n))                                                return 'dhl';
+      if (/^\d{10,11}$/.test(n))                                               return 'dhl';
       return null;
     }
 
-    // ── Tracking URLs ───────────────────────────────────────────────────
+    // ── Carrier page URLs (for the hidden iframe) ─────────────────────
     function trackingPageUrl(carrier, num) {
-      const n = encodeURIComponent(num.trim().replace(/\s+/g, ''));
+      const n = encodeURIComponent(num.trim());
       switch (carrier) {
         case 'usps':   return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`;
-        case 'ups':    return `https://wwwapps.ups.com/WebTracking/track?track=yes&trackNums=${n}`;
-        case 'fedex':  return `https://www.fedex.com/apps/fedextrack/?action=track&trackingnumber=${n}&cntry_code=us`;
-        case 'dhl':    return `https://www.dhl.com/en/express/tracking.html?AWB=${n}&brand=DHL`;
+        case 'ups':    return `https://www.ups.com/track?tracknum=${n}`;
+        case 'fedex':  return `https://www.fedex.com/fedextrack/?trknbr=${n}`;
+        case 'dhl':    return `https://www.dhl.com/en/express/tracking.html?AWB=${n}`;
         case 'amazon': return `https://www.amazon.com/progress-tracker/package/${n}`;
       }
     }
 
-    // ── Convert raw HTML to searchable plain text ───────────────────────
-    function htmlToText(html) {
-      return html
-        .replace(/&nbsp;/gi,  ' ')
-        .replace(/&#160;/gi,  ' ')
-        .replace(/&amp;/gi,   '&')
-        .replace(/&lt;/gi,    '<')
-        .replace(/&gt;/gi,    '>')
-        .replace(/&quot;/gi,  '"')
-        .replace(/&#39;/gi,   "'")
-        .replace(/<[^>]+>/g,  ' ')   // strip all tags
-        .replace(/\s+/g,      ' ');  // collapse whitespace
+    // ── 17track API calls ─────────────────────────────────────────────
+    const registered = new Set();
+
+    async function ensureRegistered(num) {
+      if (registered.has(num)) return;
+      try {
+        await fetch('https://api.17track.net/track/v2.2/register', {
+          method: 'POST',
+          headers: { '17token': API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify([{ number: num }])
+        });
+        registered.add(num);
+      } catch { /* will retry on next poll */ }
     }
 
-    // ── Status enum values used by carrier backends (appear in JSON) ──────
-    const ENUM_OUT = [
-      'OUT_FOR_DELIVERY', 'OUT FOR DELIVERY', 'ON_VEHICLE_FOR_DELIVERY',
-      'Out for delivery', 'Out For Delivery',
-      'DELIVERY_STARTED', 'WithDeliveryCourier', 'LEFT_WITH_INDIVIDUAL',
-    ];
-    const ENUM_DELIVERED = [
-      'DELIVERED', 'DELIVERED_TO_RECIPIENT', 'PACKAGE_DELIVERED',
-      'SignedForBy', 'Delivered',
-    ];
-    const ENUM_DELAY = [
-      'DELIVERY_EXCEPTION', 'EXCEPTION', 'DELAY', 'ALERT',
-      'RETURNED_TO_SENDER', 'FAILED_ATTEMPT', 'UNDELIVERABLE', 'ADDRESS_ISSUE',
-    ];
-
-    // ── Scan a JSON blob (or raw script text) for status enums ──────────
-    function scanJson(raw) {
-      let flat;
-      try { flat = JSON.stringify(JSON.parse(raw)); }
-      catch { flat = raw; }
-
-      for (const e of ENUM_OUT)       if (flat.includes(e)) return 'out';
-      for (const e of ENUM_DELIVERED) if (flat.includes(e)) return 'delivered';
-      for (const e of ENUM_DELAY)     if (flat.includes(e)) return 'delay';
-
-      const dateMatch = flat.match(
-        /(?:estimatedDelivery|scheduledDelivery|expectedDelivery|promisedDeliveryDate)["']?\s*:\s*["']([^"']{5,40})["']/i
-      );
-      if (dateMatch) return { status: 'ontime', date: dateMatch[1] };
-
-      return null;
+    async function getTrackInfo(num) {
+      const resp = await fetch('https://api.17track.net/track/v2.2/gettrackinfo', {
+        method: 'POST',
+        headers: { '17token': API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ number: num }])
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.json();
     }
 
-    // ── Plain-text keyword scan (handles split tags & encoded entities) ──
-    const DELIVERED_RE = [
-      /\bdelivered\b/i, /delivery complete/i,
-      /package was delivered/i, /has been delivered/i,
-    ];
-    const OUT_RE = [
-      /out\s+for\s+delivery/i,        // catches &nbsp; and multi-space splits
-      /on\s+.*vehicle\s+for\s+delivery/i,
-      /on\s+fedex\s+vehicle/i,
-      /with\s+delivery\s+courier/i,
-      /driver\s+is\s+nearby/i,
-    ];
-    const DELAY_RE = [
-      /\bdelay/i, /delivery\s+exception/i, /\bexception\b/i,
-      /missed\s+delivery/i, /delivery\s+attempt/i,
-      /unable\s+to\s+deliver/i, /delivery\s+was\s+not\s+completed/i,
-    ];
-
-    function keywordScan(html) {
-      // Run on BOTH raw html and decoded plain text so nothing slips through
-      const plain = htmlToText(html);
-
-      for (const re of DELIVERED_RE) if (re.test(plain) || re.test(html)) return 'delivered';
-      for (const re of OUT_RE)       if (re.test(plain) || re.test(html)) return 'out';
-      for (const re of DELAY_RE)     if (re.test(plain) || re.test(html)) return 'delay';
-
-      const dateMatch = plain.match(
-        /(?:estimated|scheduled|expected)\s+delivery[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s*\d{4}|\w+day,?\s*\w+\s+\d{1,2})/i
-      );
-      return dateMatch ? { status: 'ontime', date: dateMatch[1].trim() } : 'ontime';
-    }
-
-    // ── Full HTML parser: JSON blocks first, plain text fallback ──────────
-    function parseStatusFromHtml(html) {
-      // 1. Next.js __NEXT_DATA__ SSR payload
-      const nextDataMatch = html.match(
-        /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i
-      );
-      if (nextDataMatch) {
-        const r = scanJson(nextDataMatch[1]);
-        if (r) return r;
+    // ── Map 17track response → display status ─────────────────────────
+    // 17track status codes (track.e):
+    //   0  = Not Found   10 = In Transit   20 = Expired
+    //   30 = Pick Up     35 = Undelivered  40 = Delivered   50 = Alert
+    function interpretStatus(apiData) {
+      const accepted = apiData?.data?.accepted;
+      if (!accepted?.length) {
+        return { key: 'ontime', detail: 'Waiting for first carrier scan…' };
       }
 
-      // 2. <script type="application/json"> blocks
-      for (const [, c] of html.matchAll(
-        /<script[^>]+type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi
-      )) {
-        const r = scanJson(c);
-        if (r) return r;
-      }
+      const track = accepted[0].track;
+      if (!track) return { key: 'ontime', detail: 'No tracking events yet' };
 
-      // 3. Inline scripts containing tracking-related keys
-      for (const [, c] of html.matchAll(
-        /<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi
-      )) {
-        if (c.length < 10 || c.length > 200000) continue;
-        if (/status|tracking|delivery|shipment/i.test(c)) {
-          const r = scanJson(c);
-          if (r) return r;
+      const e       = track.e;           // status enum
+      const ev      = track.z1 || {};    // latest event object
+      const evText  = (ev.a  || '').toLowerCase(); // human-readable description
+      const evSub   = (ev.z  || '').toLowerCase(); // machine sub-status
+      const evTime  = ev.d;             // ISO datetime string
+
+      // Delivered
+      if (e === 40) {
+        let detail = 'Your package has been delivered';
+        if (evTime) {
+          try {
+            const t = new Date(evTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            detail = 'Delivered at ' + t;
+          } catch {}
         }
+        return { key: 'delivered', detail };
       }
 
-      // 4. Full plain-text scan (strips tags + decodes entities)
-      return keywordScan(html);
+      // Delay / exception / failed attempt
+      if (e === 50 || e === 35) {
+        return { key: 'delay', detail: ev.a || 'A delay has been reported' };
+      }
+
+      // Out for delivery (Pick Up code, or In Transit with OFD sub-status/text)
+      const isOFD =
+        evSub.includes('outfordelivery') ||
+        evSub.includes('out_for_delivery') ||
+        /out\s+for\s+delivery/i.test(evText);
+
+      if (e === 30 || (e === 10 && isOFD)) {
+        return { key: 'out', detail: 'Your package is on its way' };
+      }
+
+      // In transit
+      if (e === 10) {
+        // Try to surface an estimated delivery date from the latest event text
+        const etaMatch = evText.match(
+          /(?:estimated|expected|scheduled)\s+delivery[:\s]+([a-z]+\.?\s+\d{1,2}(?:,?\s*\d{4})?)/i
+        );
+        if (etaMatch) return { key: 'ontime', detail: 'Estimated Delivery: ' + etaMatch[1].trim() };
+        return { key: 'ontime', detail: 'In transit — on schedule' };
+      }
+
+      // Expired / not found
+      if (e === 20) return { key: 'delay', detail: 'Tracking expired or package may be lost' };
+
+      return { key: 'ontime', detail: 'Waiting for tracking updates…' };
     }
 
-    function parseDeliveryTime(html) {
-      const plain = htmlToText(html);
-      const m = plain.match(/delivered[^.]{0,80}?(\d{1,2}:\d{2}\s*[APap][Mm])/i);
-      return m ? m[1] : null;
-    }
-
-    // ── Status display config ───────────────────────────────────────────
+    // ── Display config ────────────────────────────────────────────────
     const STATUS = {
-      ontime:    { icon: '📦', color: '#B0BEC5', glow: 'rgba(158,158,158,0.14)', bg: '#111827', panelCls: 's-ontime' },
-      out:       { icon: '🚚', color: '#4FC3F7', glow: 'rgba(30,100,220,0.22)',  bg: '#08111f', panelCls: 's-out'    },
-      delivered: { icon: '✅',       color: '#66BB6A', glow: 'rgba(46,125,50,0.22)',   bg: '#081510', panelCls: 's-delivered' },
-      delay:     { icon: '⚠️', color: '#EF5350', glow: 'rgba(198,40,40,0.22)',   bg: '#150808', panelCls: 's-delay'  },
+      ontime:    { icon: '📦', color: '#B0BEC5', glow: 'rgba(158,158,158,0.14)', bg: '#111827', cls: 's-ontime'    },
+      out:       { icon: '🚚', color: '#4FC3F7', glow: 'rgba(30,100,220,0.22)',  bg: '#08111f', cls: 's-out'       },
+      delivered: { icon: '✅',       color: '#66BB6A', glow: 'rgba(46,125,50,0.22)',   bg: '#081510', cls: 's-delivered' },
+      delay:     { icon: '⚠️', color: '#EF5350', glow: 'rgba(198,40,40,0.22)',   bg: '#150808', cls: 's-delay'     },
     };
 
+    // ── State ─────────────────────────────────────────────────────────
     let currentCarrier = null;
     let currentNum     = '';
     let refreshTimer   = null;
 
+    // ── UI helpers ────────────────────────────────────────────────────
     function highlightBadge(carrier) {
       ['usps','ups','fedex','dhl','amazon'].forEach(c =>
         document.getElementById('badge-' + c).classList.toggle('detected', c === carrier)
@@ -490,35 +493,38 @@
       highlightBadge(detectCarrier(document.getElementById('tracking-input').value));
     }
 
+    function labelFor(key, detail) {
+      if (key === 'ontime') {
+        const m = detail && detail.match(/Estimated Delivery: (.+)/);
+        return m ? 'On Time: ' + m[1] : 'On Time';
+      }
+      if (key === 'out') return 'Out For Delivery';
+      if (key === 'delivered') {
+        const m = detail && detail.match(/Delivered at (.+)/);
+        return m ? 'Delivered at ' + m[1] : 'Delivered';
+      }
+      if (key === 'delay') return 'Delay';
+      return key;
+    }
+
     function applyStatus(key, detail) {
       const cfg = STATUS[key];
       document.body.style.backgroundColor = cfg.bg;
+
       const panel = document.getElementById('status-display');
-      panel.className = 'status-display visible ' + cfg.panelCls;
+      panel.className = 'status-display visible ' + cfg.cls;
+
       const glow = document.getElementById('status-glow');
       glow.style.background =
         `radial-gradient(ellipse at center, ${cfg.glow} 0%, transparent 70%)`;
       glow.classList.add('lit');
-      document.getElementById('status-icon').textContent = cfg.icon;
-      document.getElementById('status-text').textContent = labelFor(key, detail);
-      document.getElementById('status-text').style.color = cfg.color;
+
+      document.getElementById('status-icon').textContent   = cfg.icon;
+      document.getElementById('status-text').textContent   = labelFor(key, detail);
+      document.getElementById('status-text').style.color   = cfg.color;
       document.getElementById('status-detail').textContent = detail || '';
       document.getElementById('status-updated').textContent =
         'Last checked: ' + new Date().toLocaleTimeString();
-    }
-
-    function labelFor(key, detail) {
-      if (key === 'ontime') {
-        const d = detail && detail.match(/Estimated Delivery: (.+)/);
-        return d ? 'On Time: ' + d[1] : 'On Time';
-      }
-      if (key === 'out')       return 'Out For Delivery';
-      if (key === 'delivered') {
-        const t = detail && detail.match(/Delivered at (.+)/);
-        return t ? 'Delivered at ' + t[1] : 'Delivered';
-      }
-      if (key === 'delay') return 'Delay';
-      return key;
     }
 
     function setCarrierLabel(carrier, num) {
@@ -535,60 +541,59 @@
       el.style.animation = '';
     }
 
+    // ── Main fetch + display ──────────────────────────────────────────
     async function fetchAndUpdateStatus() {
-      if (!currentCarrier || !currentNum) return;
+      if (!currentNum) return;
 
-      document.getElementById('tracking-frame').src =
-        trackingPageUrl(currentCarrier, currentNum);
+      // Show the real carrier page in the hidden iframe
+      if (currentCarrier) {
+        document.getElementById('tracking-frame').src =
+          trackingPageUrl(currentCarrier, currentNum);
+      }
 
-      const proxyUrl = 'https://api.allorigins.win/get?url=' +
-        encodeURIComponent(trackingPageUrl(currentCarrier, currentNum));
+      // Guard: no key configured
+      if (API_KEY === 'YOUR_17TRACK_API_KEY') {
+        document.getElementById('api-banner').classList.add('show');
+        applyStatus('delay', 'Add your free 17track API key to enable tracking');
+        return;
+      }
 
       try {
-        const resp = await fetch(proxyUrl, { cache: 'no-store' });
-        if (!resp.ok) throw new Error('proxy ' + resp.status);
-        const data = await resp.json();
-        const html = data.contents || '';
-        const parsed = parseStatusFromHtml(html);
+        await ensureRegistered(currentNum);
+        const data = await getTrackInfo(currentNum);
 
-        if (parsed === 'out') {
-          applyStatus('out', 'Your package is on its way');
-        } else if (parsed === 'delivered') {
-          const t = parseDeliveryTime(html);
-          applyStatus('delivered', t ? 'Delivered at ' + t : 'Your package has been delivered');
-        } else if (parsed === 'delay') {
-          applyStatus('delay', 'A delay has been reported — check carrier for details');
-        } else if (typeof parsed === 'object' && parsed.status === 'ontime') {
-          applyStatus('ontime',
-            parsed.date ? 'Estimated Delivery: ' + parsed.date : 'In transit — on schedule');
-        } else {
-          applyStatus('ontime', 'In transit — on schedule');
-        }
-      } catch {
-        applyStatus('ontime', 'Could not read carrier page — retrying…');
+        // Handle API-level errors
+        if (data.code !== 0) throw new Error('17track code ' + data.code);
+
+        const { key, detail } = interpretStatus(data);
+        applyStatus(key, detail);
+      } catch (err) {
+        applyStatus('ontime', 'Could not reach tracking API — retrying…');
       }
     }
 
+    // ── Start tracking ────────────────────────────────────────────────
     function trackPackage() {
-      const input  = document.getElementById('tracking-input');
-      const raw    = input.value.trim();
+      const input = document.getElementById('tracking-input');
+      const raw   = input.value.trim();
       if (!raw) return;
 
       const carrier = detectCarrier(raw);
+
+      // Flash red border if unrecognised, but still attempt tracking
+      // (17track supports 2000+ carriers beyond our simple detector)
       if (!carrier) {
-        input.style.borderColor = 'rgba(239,83,80,0.75)';
-        setTimeout(() => { input.style.borderColor = ''; }, 1600);
-        applyStatus('delay', 'Carrier not recognised — check your tracking number');
-        document.getElementById('status-display').classList.add('visible');
-        return;
+        input.style.borderColor = 'rgba(239,83,80,0.6)';
+        setTimeout(() => { input.style.borderColor = ''; }, 1500);
       }
 
       currentCarrier = carrier;
       currentNum     = raw;
       highlightBadge(carrier);
+
       document.getElementById('status-display').classList.add('visible');
-      setCarrierLabel(carrier, raw);
-      applyStatus('ontime', 'Fetching status…');
+      setCarrierLabel(carrier || 'unknown', raw);
+      applyStatus('ontime', 'Registering with 17track…');
 
       if (refreshTimer) clearInterval(refreshTimer);
       restartRefreshBar();
@@ -598,6 +603,11 @@
         fetchAndUpdateStatus();
         restartRefreshBar();
       }, 5000);
+    }
+
+    // Show API key banner immediately if key is placeholder
+    if (API_KEY === 'YOUR_17TRACK_API_KEY') {
+      document.getElementById('api-banner').classList.add('show');
     }
   </script>
 </body>
